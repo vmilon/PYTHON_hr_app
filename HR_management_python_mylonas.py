@@ -1,306 +1,161 @@
-# Import MySql Connector
 import mysql.connector
 
-#CONNECTOR OBJECT
-mycon = mysql.connector.connect(
-host='localhost', user='root',
-password='', database='HR')
-#CURSOR OBJECT
-curs = mycon.cursor()
+# Database Connection Function
+def get_connection():
+    try:
+        return mysql.connector.connect(
+            host='localhost', user='root',
+            password='', database='HR'
+        )
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+        exit()
 
+# Fetch All Employee IDs
+def get_employee_ids():
+    with get_connection() as conn:
+        with conn.cursor() as curs:
+            curs.execute("SELECT id_emp FROM personel;")
+            return {row[0] for row in curs.fetchall()}
 
-# FUNCTION FOR ID CHECK IF IT EXISTS IN DATABASE
-def check():
-      # SELECT QUERY GIA ELEGXO ID
-      qry = 'select id_emp from personel;'
-      curs.execute(qry)
-
-      d = curs.fetchall()
-      idlist = []
-      for ids in d:
-            idlist.append(ids[0])
-      return idlist
-
-# FUNCTION FOR ADDING EMPLOYEE IN DATABASE
+# Register New Employee
 def register():
-      loop = 'Y'
-      idlist = check()
-      while loop in 'yY':
+    while True:
+        idlist = get_employee_ids()
+        try:
             id_emp = int(input('Enter employee ID: '))
-            #CHECK IF ID EXISTS
-            if id_emp in idlist:
-                  print("This Employee Id already exists. Try another!\n")
+        except ValueError:
+            print("Invalid input! Please enter a numeric ID.")
+            continue
 
-            else:
-                  #CREATE TUPPLE WITH EMPLOYEE DATA
-                  data = ()
-                  name = input('Name : ')
-                  email = input('Email : ')
-                  phone = input('Phone Number : ')
-                  address = input('Address : ')
-                  salary = input('Salary : ')
-                  data = (id_emp, name, email, phone, address, salary)
+        if id_emp in idlist:
+            print("This Employee ID already exists. Try another!\n")
+        else:
+            name = input('Name: ')
+            email = input('Email: ')
+            phone = input('Phone Number: ')
+            address = input('Address: ')
+            salary = input('Salary: ')
+            
+            with get_connection() as conn:
+                with conn.cursor() as curs:
+                    curs.execute(
+                        "INSERT INTO personel VALUES (%s, %s, %s, %s, %s, %s);",
+                        (id_emp, name, email, phone, address, salary)
+                    )
+                    conn.commit()
+            print('EMPLOYEE SUCCESSFULLY REGISTERED!\n')
+        
+        if input('Register another employee? (Y/N): ').strip().upper() != 'Y':
+            break
 
-                  qry = 'insert into personel values(%s,%s,%s,%s,%s,%s);'
-
-                  val = data
-
-                  curs.execute(qry, val)
-                  mycon.commit()
-                  print('EMPLOYEE SUCCESSFULLY REGISTERED!!\n')
-                  loop = input('Do you want to register another employee? (Y/N) ')
-                  if loop not in ('Yy'):
-                        break
-
-
-
-# FUNCTION FOR VIEWING EMPLOYEE DATA
+# View Employee Data
 def view():
-      id_emp = int(input('Enter the ID of the employee you wish to view: '))
+    try:
+        id_emp = int(input('Enter Employee ID: '))
+    except ValueError:
+        print("Invalid input! Please enter a numeric ID.")
+        return
+    
+    idlist = get_employee_ids()
+    if id_emp not in idlist:
+        print("Employee not found!\n")
+        return
 
-      idtp = (id_emp,)
+    with get_connection() as conn:
+        with conn.cursor() as curs:
+            curs.execute("SELECT * FROM personel WHERE id_emp = %s;", (id_emp,))
+            for row in curs.fetchall():
+                print(row)
 
-      #CHECK IF ID EXISTS
-      idlist = check()
-      if id_emp in idlist:
-            # QUERY SHOWING EMPLOYEE DATA
-            qry = 'select * from personel where id_emp = %s;'
-            curs.execute(qry, idtp)
-            empl = curs.fetchall()
-            print('The employee you have selected is: \n')
-            for x in empl:
-                  print(x)
-      else:
-            print('The ID you provided does not match any of our employees!\n')
-
-
-
-
-#FUNCTION FOR EDITING EMPLOYEE ID
+# Update Employee Data
 def edit():
-      id_emp = int(input('Enter employee ID: '))
+    try:
+        id_emp = int(input('Enter Employee ID: '))
+    except ValueError:
+        print("Invalid input! Please enter a numeric ID.")
+        return
+    
+    if id_emp not in get_employee_ids():
+        print("Employee not found!\n")
+        return
 
-      idtp = (id_emp,)
+    name = input('Name: ')
+    email = input('Email: ')
+    phone = input('Phone Number: ')
+    address = input('Address: ')
+    salary = input('Salary: ')
+    
+    with get_connection() as conn:
+        with conn.cursor() as curs:
+            curs.execute(
+                "UPDATE personel SET name=%s, email=%s, phone=%s, address=%s, salary=%s WHERE id_emp=%s;",
+                (name, email, phone, address, salary, id_emp)
+            )
+            conn.commit()
+    print("EMPLOYEE SUCCESSFULLY UPDATED!\n")
 
-      #CHECK IF ID EXISTS
-      idlist = check()
-
-      if id_emp in idlist:
-            qry = 'select * from personel where id_emp = %s;'
-            curs.execute(qry, idtp)
-            empl = curs.fetchall()
-            print('The employee you have selected is: \n')
-            for x in empl:
-                  print(x)
-
-            con = input('Are you sure you want to edit this data? (Y/N) ')
-            if con in ('y', 'Y'):
-
-                  #TUPPLE THAT USER FILLS WITH EMPLOYEE DATA
-                  data = ()
-                  name = input('Name : ')
-                  email = input('Email : ')
-                  phone = input('Phone Number : ')
-                  address = input('Address : ')
-                  salary = input('Salary : ')
-                  data = (name, email, phone, address, salary, id_emp)
-
-                  # UPDATE QUERY FOR EDITING DATABASE
-                  qry = "update personel " \
-                        "set name=%s, email=%s, phone=%s, address=%s, salary=%s " \
-                        "where id_emp = %s;"
-
-                  curs.execute(qry, data)
-                  mycon.commit()
-                  print('EMPLOYEE SUCCESSFULLY EDITED!!\n')
-            else:
-                  print('EDIT CANCELED!!\n')
-      else:
-            print('The ID you provided does not match any of our employees!\n')
-
-
-# FUNCTION FOR PROMOTION
+# Promote Employee
 def promote():
-      id_emp = int(input('Enter employee ID: '))
+    try:
+        id_emp = int(input('Enter Employee ID: '))
+    except ValueError:
+        print("Invalid input! Please enter a numeric ID.")
+        return
 
-      idtp = (id_emp,)
+    if id_emp not in get_employee_ids():
+        print("Employee not found!\n")
+        return
 
-      idlist = check()
-      if id_emp in idlist:
-            qry = 'select * from personel where id_emp = %s;'
-            curs.execute(qry, idtp)
-            empl = curs.fetchall()
-            print('The employee you have selected for promotion is: \n')
-            for x in empl:
-                  print(x)
+    salary = input('New Salary: ')
+    
+    with get_connection() as conn:
+        with conn.cursor() as curs:
+            curs.execute("UPDATE personel SET salary=%s WHERE id_emp=%s;", (salary, id_emp))
+            conn.commit()
+    print("EMPLOYEE SUCCESSFULLY PROMOTED!\n")
 
-            con = input('Are you sure you want to promote this employee (Y/N) ')
-            if con in ('y', 'Y'):
-                  data = ()
-                  salary = input('Salary : ')
-                  data = (salary, id_emp)
-
-                  #UPDATE QUERY FOR SALARY EDIT
-                  qry = "update personel " \
-                        "set salary=%s " \
-                        "where id_emp = %s;"
-
-                  curs.execute(qry, data)
-                  mycon.commit()
-                  print('EMPLOYEE SUCCESSFULLY PROMOTED!!\n')
-            else:
-                  print('PROMOTION CANCELED!!\n')
-      else:
-            print('The ID you provided does not match any of our employees!\n')
-
-# FUNCTION FOR DELETING EMPLOYEE FROM DATABASE
+# Delete Employee
 def delete():
-      id_emp = int(input('Enter employee ID: '))
+    try:
+        id_emp = int(input('Enter Employee ID: '))
+    except ValueError:
+        print("Invalid input! Please enter a numeric ID.")
+        return
 
-      idtp = (id_emp,)
+    if id_emp not in get_employee_ids():
+        print("Employee not found!\n")
+        return
+    
+    with get_connection() as conn:
+        with conn.cursor() as curs:
+            curs.execute("DELETE FROM personel WHERE id_emp = %s;", (id_emp,))
+            conn.commit()
+    print("EMPLOYEE SUCCESSFULLY DELETED!\n")
 
-      idlist = check()
-      if id_emp in idlist:
-            qry = 'select * from personel where id_emp = %s;'
-            curs.execute(qry, idtp)
-            empl = curs.fetchall()
-            print('The employee you have selected is: \n')
-            for x in empl:
-                  print(x)
+# Main Menu
+def main():
+    while True:
+        print('\n***** HR MANAGEMENT *****')
+        print('1. Register Employee')
+        print('2. View Employee Data')
+        print('3. Edit Employee Data')
+        print('4. Promote Employee')
+        print('5. Delete Employee')
+        print('6. Exit')
+        
+        choice = input('Enter your choice: ').strip()
+        
+        actions = {
+            '1': register,
+            '2': view,
+            '3': edit,
+            '4': promote,
+            '5': delete,
+            '6': exit
+        }
+        
+        actions.get(choice, lambda: print("Invalid option!"))()
 
-            con = input('Are you sure you want to DELETE this employee (Y/N) ')
-            if con in ('y', 'Y'):
-                  data = (id_emp,)
-
-
-                  #DELETE QUERY
-                  qry = "delete from personel " \
-                        "where id_emp = %s;"
-
-                  curs.execute(qry, data)
-                  mycon.commit()
-                  print('EMPLOYEE SUCCESSFULLY DELETED!!\n')
-            else:
-                  print('DELETE CANCELED!!\n')
-      else:
-            print('The ID you provided does not match any of our employees!\n')
-
-
-#FUNCTION FOR SEARCHING PARTICULAR EMPLOYEE
-def search():
-      id_emp = int(input('Enter employee ID: '))
-      idtp = (id_emp,)
-      idlist = check()
-      if id_emp in idlist:
-            qry = 'select * from personel where id_emp = %s;'
-            curs.execute(qry, idtp)
-            empl = curs.fetchall()
-            print('The employee you have selected is: \n')
-            for x in empl:
-                  print(x)
-
-            print('What would you like to do with this employee?\n'
-                  'a. Edit Employee\n'
-                  'b. Promote Employee\n'
-                  'c. Delete Employee\n'
-                  'd. Search Another Employee\n'
-                  'e. Back to homepage!\n')
-            ch=input('Choose an action: ')
-            if ch in ('a','A'):
-                  con = input('Are you sure you want to edit this employee? (Y/N) ')
-                  if con in ('y', 'Y'):
-                        #TUPPLE THAT USER FILLS WITH EMPLOYEE DATA
-                        data = ()
-                        name = input('Name : ')
-                        email = input('Email : ')
-                        phone = input('Phone Number : ')
-                        address = input('Address : ')
-                        salary = input('Salary : ')
-                        data = (name, email, phone, address, salary, id_emp)
-
-                        qry = "update personel " \
-                              "set name=%s, email=%s, phone=%s, address=%s, salary=%s " \
-                              "where id_emp = %s;"
-
-                        curs.execute(qry, data)
-                        mycon.commit()
-                        print('EMPLOYEE SUCCESSFULLY EDITED!!\n')
-                  else:
-                        print('EDIT CANCELED!!\n')
-            elif ch in ('b','B'):
-                  con = input('Are you sure you want to promote this employee (Y/N) ')
-                  if con in ('y', 'Y'):
-                        data = ()
-                        salary = input('Salary : ')
-                        data = (salary, id_emp)
-
-                        qry = "update personel " \
-                              "set salary=%s " \
-                              "where id_emp = %s;"
-
-                        curs.execute(qry, data)
-                        mycon.commit()
-                        print('EMPLOYEE SUCCESSFULLY PROMOTED!!\n')
-                  else:
-                        print('PROMOTION CANCELED!!\n')
-            elif ch in ('c','C'):
-                  con = input('Are you sure you want to DELETE this employee (Y/N) ')
-                  if con in ('y', 'Y'):
-                        data = (id_emp,)
-
-                        qry = "delete from personel " \
-                              "where id_emp = %s;"
-
-                        curs.execute(qry, data)
-                        mycon.commit()
-                        print('EMPLOYEE SUCCESSFULLY DELETED!!\n')
-                  else:
-                        print('DELETE CANCELED!!\n')
-            elif ch in ('d','D'):
-                  search()
-            elif ch in ('e','E'):
-                  print('RETURNING TO HOMEPAGE!\n')
-            else:
-                  print('WRONG INPUT. BACK TO HOMEPAGE.\n')
-
-      else:
-            print('The ID you provided does not match any of our employees!\n')
-
-
-#HOME PAGE OF PROGRAMM
-ch=0
-print('**WELCOME TO OUR HR MANAGEMENT TERMINAL**\n')
-
-#LOOP SO THE PROGRAMM DOESN'T EXIT UNLESS USER TYPES COMMAND
-while ch !=7:
-      print('***** HOME-PAGE *****\n')
-      print('You can use this terminal to do the following actions:\n\n'
-            '1. Register New Employee\n'
-            '2. View Employee Data\n'
-            '3. Edit Employee Data\n'
-            '4. Promote Employee\n'
-            '5. Delete Employee\n'
-            '6. Search Employee\n'
-            '7. EXIT\n')
-      ch=int(input('Please type the number of the desired action: \n'))
-
-      if ch == 1 :
-            register()
-      elif ch == 2 :
-            view()
-
-      elif ch == 3 :
-            edit()
-
-      elif ch == 4 :
-            promote()
-
-      elif ch == 5 :
-            delete()
-
-      elif ch == 6 :
-            search()
-      elif ch == 7 :
-            print('EXITING...')
-      else:
-            print('WRONG INPUT. TRY AGAIN!\n\n')
+if __name__ == "__main__":
+    main()
